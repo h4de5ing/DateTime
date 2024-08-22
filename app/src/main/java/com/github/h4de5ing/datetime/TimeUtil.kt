@@ -86,6 +86,13 @@ fun setTime(context: Context, hour: Int, minute: Int) {
     }
 }
 
+/** 设置系统日期和时间，需要有系统签名才可以 */
+fun setDateTime(context: Context, millis: Long) {
+    thread {
+        (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).setTime(millis)
+    }
+}
+
 /**
  * 设置系统时区
  * 获取以及设置时区用到的都是TimezoneID，它们以字符串的形式存在。
