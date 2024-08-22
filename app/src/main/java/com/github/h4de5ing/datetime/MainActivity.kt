@@ -1,5 +1,6 @@
 package com.github.h4de5ing.datetime
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -42,6 +43,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,6 +83,15 @@ fun Greeting(modifier: Modifier = Modifier) {
     var autoTimeZone by remember { mutableStateOf(isTimeZoneAuto(context)) }
     var is24Hour by remember { mutableStateOf(is24HourFormat(context)) }
     var time by remember { mutableStateOf("${Date().time.date2HumanString()},${getTimeZoneId()}") }
+    val ntpList = arrayOf(
+        //中国计量科学研究院NIM授时服务
+        "ntp1.nim.ac.cn",
+        //教育网
+        "edu.ntp.org.cn",
+        //阿里云
+        "ntp.aliyun.com",
+    )
+    val mapResult by remember { mutableStateOf(mutableMapOf<String, String>()) }
     val state = rememberTimePickerState(
         Calendar.getInstance().get(Calendar.HOUR_OF_DAY),
         Calendar.getInstance().get(Calendar.MINUTE)
@@ -203,19 +214,8 @@ fun Greeting(modifier: Modifier = Modifier) {
                 println("时区:${it}")
             }
         }) { Text(text = "设置时区") }
+
         Button(onClick = {
-            val ntpList = arrayOf(
-                //国家授时中心NTP
-                "ntp.ntsc.ac.cn",
-                //中国计量科学研究院NIM授时服务
-                "ntp1.nim.ac.cn",
-                //中国NTP快速授时服务
-                "cn.ntp.org.cn",
-                //教育网
-                "edu.ntp.org.cn",
-                //阿里云
-                "ntp.aliyun.com"
-            )
             scope.launch(Dispatchers.IO) {
                 val client = NtpClient()
                 val ntpServer = ntpList[Random.nextInt(ntpList.size)]
@@ -234,6 +234,22 @@ fun Greeting(modifier: Modifier = Modifier) {
         }) {
             Text(text = "设置NTP时间")
         }
+        Button(onClick = {
+            scope.launch(Dispatchers.IO) {
+                val client = NtpClient()
+                ntpList.forEach {
+                    val isSuccess = client.requestTime(it, NtpClient.NTP_TIME_OUT_MILLISECOND)
+                    if (isSuccess) {
+                        mapResult[it] = client.ntpTime.date2HumanString()
+                    } else {
+                        mapResult[it] = "获取失败"
+                    }
+                }
+            }
+        }) {
+            Text(text = "NTP服务器测试")
+        }
+        Text(text = buildAnnotatedString { mapResult.forEach { append("${it.key}  ${it.value}\n") } })
     }
 }
 
