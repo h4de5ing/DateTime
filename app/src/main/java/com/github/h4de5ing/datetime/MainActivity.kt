@@ -1,6 +1,7 @@
 package com.github.h4de5ing.datetime
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -48,16 +49,11 @@ import com.github.h4de5ing.datetime.ui.theme.DateTimeTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import java.io.IOException
 import java.util.Calendar
 import java.util.Date
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
+import kotlin.random.Random
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,7 +81,10 @@ fun Greeting(modifier: Modifier = Modifier) {
     var autoTimeZone by remember { mutableStateOf(isTimeZoneAuto(context)) }
     var is24Hour by remember { mutableStateOf(is24HourFormat(context)) }
     var time by remember { mutableStateOf("${Date().time.date2HumanString()},${getTimeZoneId()}") }
-    val state = rememberTimePickerState()
+    val state = rememberTimePickerState(
+        Calendar.getInstance().get(Calendar.HOUR_OF_DAY),
+        Calendar.getInstance().get(Calendar.MINUTE)
+    )
     LaunchedEffect(Unit) {
         scope.launch(Dispatchers.IO) {
             while (true) {
@@ -205,23 +204,36 @@ fun Greeting(modifier: Modifier = Modifier) {
             }
         }) { Text(text = "设置时区") }
         Button(onClick = {
+            val ntpList = arrayOf(
+                //国家授时中心NTP
+                "ntp.ntsc.ac.cn",
+                //中国计量科学研究院NIM授时服务
+                "ntp1.nim.ac.cn",
+                //中国NTP快速授时服务
+                "cn.ntp.org.cn",
+                //教育网
+                "edu.ntp.org.cn",
+                //阿里云
+                "ntp.aliyun.com"
+            )
             scope.launch(Dispatchers.IO) {
-                val url = "https://www.baidu.com"
-                val build = OkHttpClient
-                    .Builder().addInterceptor(TimeSynchronizationInterceptor())
-                    .callTimeout(1, TimeUnit.SECONDS)
-                    .build()
-                build.newCall(Request.Builder().url(url).build()).enqueue(object : Callback {
-                    override fun onFailure(call: Call, e: IOException) {
-                        println("请求失败")
+                val client = NtpClient()
+                val ntpServer = ntpList[Random.nextInt(ntpList.size)]
+                println("ntpServer:${ntpServer}")
+                val isSuccess =
+                    client.requestTime(ntpServer, NtpClient.NTP_TIME_OUT_MILLISECOND)
+                scope.launch(Dispatchers.Main) {
+                    if (isSuccess) {
+                        setDateAndTime(client.ntpTime)
+                        Toast.makeText(context, "设置成功", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "获取时间失败", Toast.LENGTH_SHORT).show()
                     }
-
-                    override fun onResponse(call: Call, response: Response) {
-                        println("请求成功 = ${response.code}")
-                    }
-                })
+                }
             }
-        }) { Text(text = "网络时间") }
+        }) {
+            Text(text = "设置NTP时间")
+        }
     }
 }
 
